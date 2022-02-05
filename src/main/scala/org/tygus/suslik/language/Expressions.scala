@@ -73,6 +73,7 @@ object Expressions {
       (IntType, IntType) -> OpEq,
       (LocType, LocType) -> OpEq,
       (IntSetType, IntSetType) -> OpSetEq,
+      (IntMultisetType, IntMultisetType) -> OpMultisetEq,
       (IntervalType, IntervalType) -> OpIntervalEq,
       (BoolType, BoolType) -> OpBoolEq,
     )
@@ -118,6 +119,7 @@ object Expressions {
     override def pp: String = "in"
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntSetType) -> OpIn,
+      (IntType, IntMultisetType) -> OpMultisetIn,
       (IntType, IntervalType) -> OpIntervalIn,
     )
 
@@ -131,6 +133,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpPlus,
       (IntSetType, IntSetType) -> OpUnion,
+      (IntMultisetType, IntMultisetType) -> OpMultisetUnion,
       (IntervalType, IntervalType) -> OpIntervalUnion,
     )
 
@@ -143,6 +146,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpMinus,
       (IntSetType, IntSetType) -> OpDiff,
+      (IntMultisetType, IntMultisetType) -> OpMultisetDiff,
     )
 
     override def default: BinOp = OpMinus
@@ -154,6 +158,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpLeq,
       (IntSetType, IntSetType) -> OpSubset,
+      (IntMultisetType, IntMultisetType) -> OpMultisetSubset,
       (IntervalType, IntervalType) -> OpSubinterval,
     )
 
@@ -166,6 +171,7 @@ object Expressions {
     override def opFromTypes: Map[(SSLType, SSLType), BinOp] = Map(
       (IntType, IntType) -> OpMultiply,
       (IntSetType, IntSetType) -> OpIntersect,
+      (IntMultisetType, IntMultisetType) -> OpMultisetIntersect,
     )
 
     override def default: BinOp = OpLeq
@@ -266,6 +272,46 @@ object Expressions {
     override def resType: SSLType = IntSetType
   }
 
+  object OpMultisetUnion extends BinOp with SymmetricOp with AssociativeOp {
+    def level: Int = 4
+    override def pp: String = "++"
+    def lType: SSLType = IntMultisetType
+    def rType: SSLType = IntMultisetType
+    def resType: SSLType = IntMultisetType
+  }
+  object OpMultisetDiff extends BinOp {
+    def level: Int = 4
+    override def pp: String = "--"
+    def lType: SSLType = IntMultisetType
+    def rType: SSLType = IntMultisetType
+    def resType: SSLType = IntMultisetType
+  }
+  object OpMultisetIn extends RelOp {
+    def level: Int = 3
+    override def pp: String = "in"
+    def lType: SSLType = IntType
+    def rType: SSLType = IntMultisetType
+  }
+  object OpMultisetEq extends RelOp with SymmetricOp {
+    def level: Int = 3
+    override def pp: String = "=m"
+    def lType: SSLType = IntMultisetType
+    def rType: SSLType = IntMultisetType
+  }
+  object OpMultisetSubset extends RelOp {
+    def level: Int = 3
+    override def pp: String = "<=m"
+    def lType: SSLType = IntMultisetType
+    def rType: SSLType = IntMultisetType
+  }
+  object OpMultisetIntersect extends BinOp with SymmetricOp with AssociativeOp {
+    def level: Int = 4
+    override def pp: String = "*"
+    def lType: SSLType = IntMultisetType
+    def rType: SSLType = IntMultisetType
+    override def resType: SSLType = IntMultisetType
+  }
+
   object OpRange extends BinOp {
     def level: Int = 5
     override def pp: String = ".."
@@ -326,6 +372,9 @@ object Expressions {
         case s@SetLiteral(elems) =>
           val acc1 = if (p(s)) acc + s.asInstanceOf[R] else acc
           elems.foldLeft(acc1)((a,e) => collector(a)(e))
+        case m@MultisetLiteral(elems) =>
+          val acc1 = if (p(m)) acc + m.asInstanceOf[R] else acc
+          elems.foldLeft(acc1)((a,e) => collector(a)(e)) 
         case i@IfThenElse(cond, l, r) =>
           val acc1 = if (p(i)) acc + i.asInstanceOf[R] else acc
           val acc2 = collector(acc1)(cond)
@@ -360,6 +409,7 @@ object Expressions {
     def |/===| (other: Expr): Expr = (this |===| other).not
     def eq(other: Expr, t: SSLType): Expr = t match {
       case IntSetType => BinaryExpr(OpSetEq, this, other)
+      case IntMultisetType => BinaryExpr(OpMultisetEq, this, other)
       case BoolType => this <==> other
       case _ => this |=| other
     }
@@ -425,6 +475,13 @@ object Expressions {
             case Some(g) => e.resolve(g, Some(IntType))
           })
         } else None
+      case MultisetLiteral(elems) =>
+        if (IntMultisetType.conformsTo(target)) {
+          elems.foldLeft[Option[Gamma]](Some(gamma))((go, e) => go match {
+            case None => None
+            case Some(g) => e.resolve(g, Some(IntType))
+          })
+        } else None
       case IfThenElse(c, t, e) =>
         for {
           gamma1 <- c.resolve(gamma, Some(BoolType))
@@ -449,6 +506,7 @@ object Expressions {
       case OverloadedBinaryExpr(_, l, r) => 1 + l.size + r.size
       case UnaryExpr(_, arg) => 1 + arg.size
       case SetLiteral(elems) => 1 + elems.map(_.size).sum
+      case MultisetLiteral(elems) => 1 + elems.map(_.size).sum
       case IfThenElse(cond, l, r) => 1 + cond.size + l.size + r.size
       case _ => 1
     }
@@ -475,6 +533,7 @@ object Expressions {
       case UnaryExpr(op, e) => UnaryExpr(op, e.resolveOverloading(gamma))
       case BinaryExpr(op, l, r) => BinaryExpr(op, l.resolveOverloading(gamma), r.resolveOverloading(gamma))
       case SetLiteral(elems) => SetLiteral(elems.map(_.resolveOverloading(gamma)))
+      case MultisetLiteral(elems) => MultisetLiteral(elems.map(_.resolveOverloading(gamma)))
       case IfThenElse(c, t, e) =>IfThenElse(c.resolveOverloading(gamma),
                                             t.resolveOverloading(gamma),
                                             e.resolveOverloading(gamma))
@@ -600,6 +659,14 @@ object Expressions {
     override def pp: String = s"{${elems.map(_.pp).mkString(", ")}}"
     override def subst(sigma: Subst): SetLiteral = SetLiteral(elems.map(_.subst(sigma)))
     def getType(gamma: Gamma): Option[SSLType] = Some(IntSetType)
+  }
+
+  case class MultisetLiteral(elems: List[Expr]) extends Expr {
+    override def pp: String = s"#{${elems.map(_.pp).mkString(", ")}}"
+
+    override def subst(sigma: Subst): MultisetLiteral = MultisetLiteral(elems.map(_.subst(sigma)))
+
+    def getType(gamma: Gamma): Option[SSLType] = Some(IntMultisetType)
   }
 
   case class IfThenElse(cond: Expr, left: Expr, right: Expr) extends Expr {

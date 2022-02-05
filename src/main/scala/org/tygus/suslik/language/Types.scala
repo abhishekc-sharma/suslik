@@ -68,6 +68,10 @@ case object IntSetType extends SSLType {
   override def pp: String = "intset"
 }
 
+case object IntMultisetType extends SSLType {
+  override def pp: String = "intmultiset"
+}
+
 case object IntervalType extends SSLType {
   override def pp: String = "interval"
 }
