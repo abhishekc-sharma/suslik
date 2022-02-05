@@ -37,6 +37,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       | "bool" ^^^ BoolType
       | "loc" ^^^ LocType
       | "set" ^^^ IntSetType
+      | "multiset" ^^^ IntMultisetType
       | "interval" ^^^ IntervalType
       | "void" ^^^ VoidType)
 
@@ -53,6 +54,9 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
 
   def setLiteral: Parser[Expr] =
     "{" ~> repsep(expr, ",") <~ "}" ^^ SetLiteral
+
+  def multisetLiteral: Parser[Expr] =
+    "#{" ~> repsep(expr, ",") <~ "}" ^^ MultisetLiteral
 
   def intervalLiteral: Parser[Expr] = {
     def intervalInternal: Parser[Expr] = opt(expr ~ opt(".." ~> expr)) ^^ {
@@ -82,8 +86,8 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
       ||| ">" ^^^ OpGt
       ||| ">=" ^^^ OpGeq
       ||| "!=" ^^^ OpNotEqual
-      ||| ("==" | "=i") ^^^ OpOverloadedEq
-      ||| ("<=" ||| "<=i") ^^^ OpOverloadedLeq
+      ||| ("==" | "=i" | "=m") ^^^ OpOverloadedEq
+      ||| ("<=" ||| "<=i" | "<=m") ^^^ OpOverloadedLeq
       ||| "in" ^^^ OpOverloadedIn
     )
 
@@ -100,7 +104,7 @@ class SSLParser extends StandardTokenParsers with SepLogicUtils {
   def atom: Parser[Expr] = (
     unOpParser ~ atom ^^ { case op ~ a => UnaryExpr(op, a) }
       | "(" ~> expr <~ ")"
-      | intLiteral | boolLiteral | setLiteral | locLiteral | intervalLiteral
+      | intLiteral | boolLiteral | setLiteral | multisetLiteral | locLiteral | intervalLiteral
       | varParser
     )
 
