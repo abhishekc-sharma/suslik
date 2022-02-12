@@ -53,11 +53,13 @@ object SMTSolving extends Core
   /** Communication with the solver  */
 
   trait SetTerm
+  trait MultisetTerm
   trait IntervalTerm
 
   type SMTBoolTerm = TypedTerm[BoolTerm, Term]
   type SMTIntTerm = TypedTerm[IntTerm, Term]
   type SMTSetTerm = TypedTerm[SetTerm, Term]
+  type SMTMultisetTerm = TypedTerm[MultisetTerm, Term]
   type SMTIntervalTerm = TypedTerm[IntervalTerm, Term]
 
   def setSort: Sort = SortId(SymbolId(SSymbol("SetInt")))
@@ -77,6 +79,41 @@ object SMTSolving extends Core
   def setIntersectSymbol = SimpleQId(SymbolId(SSymbol("intersect")))
 
   def emptySetTerm: Term = QIdTerm(emptySetSymbol)
+
+  def multisetSort: Sort = SortId(SymbolId(SSymbol("MultisetInt")))
+
+  def emptyMultisetSymbol = SimpleQId(SymbolId(SSymbol("mempty")))
+
+  def multisetInsertSymbol = SimpleQId(SymbolId(SSymbol("minsert")))
+
+  def multisetUnionSymbol = SimpleQId(SymbolId(SSymbol("munion")))
+
+  def multisetDiffSymbol = SimpleQId(SymbolId(SSymbol("mdifference")))
+
+  def multisetMemberSymbol = SimpleQId(SymbolId(SSymbol("mmember")))
+
+  def multisetSubsetSymbol = SimpleQId(SymbolId(SSymbol("msubset")))
+
+  def multisetIntersectSymbol = SimpleQId(SymbolId(SSymbol("mintersect")))
+
+  def emptyMultisetTerm: Term = QIdTerm(emptyMultisetSymbol)
+
+  def multisetPrelude: List[String] = List(
+    "(define-sort MultisetInt () (Array Int Int))",
+    "(define-fun mempty () MultisetInt ((as const MultisetInt) 0))",
+    "(define-fun minsert ((x Int) (m MultisetInt)) MultisetInt (store m x (+ (select m x) 1)))",
+    "(define-fun munion ((m1 MultisetInt) (m2 MultisetInt)) MultisetInt ((_ map (+ (Int Int) Int)) m1 m2))",
+    "(define-fun mdifference-helper-impl ((e1 Int) (e2 Int)) Int (ite (<= e1 e2) 0 (- e1 e2)))",
+    "(declare-fun mdifference-helper (Int Int) Int)",
+    "(assert (forall ((e1 Int) (e2 Int)) (= (mdifference-helper e1 e2) (mdifference-helper-impl e1 e2))))",
+    "(define-fun mdifference ((m1 MultisetInt) (m2 MultisetInt)) MultisetInt ((_ map mdifference-helper) m1 m2))",
+    "(define-fun mmember ((x Int) (m MultisetInt)) Bool (> (select m x) 0))",
+    "(define-fun mintersect-helper-impl ((e1 Int) (e2 Int)) Int (ite (<= e1 e2) e1 e2))",
+    "(declare-fun mintersect-helper (Int Int) Int)",
+    "(assert (forall ((e1 Int) (e2 Int)) (= (mintersect-helper e1 e2) (mintersect-helper-impl e1 e2))))",
+    "(define-fun mintersect ((m1 MultisetInt) (m2 MultisetInt)) MultisetInt ((_ map mintersect-helper) m1 m2))",
+    "(define-fun msubset ((m1 MultisetInt) (m2 MultisetInt)) Bool (= (mintersect m1 m2) m1))",
+  )
 
   def intervalSort: Sort = SortId(SymbolId(SSymbol("Interval")))
 
@@ -127,7 +164,7 @@ object SMTSolving extends Core
       "(assert (forall ((b1 Bool) (b2 Bool)) (= (andNot b1 b2) (and b1 (not b2)))))",
       "(define-fun difference ((s1 SetInt) (s2 SetInt)) SetInt ((_ map andNot) s1 s2))",
       "(declare-datatypes () ((Interval (interval (lower Int) (upper Int)))))"
-    ) ++ intervalPrelude
+    ) ++ multisetPrelude ++ intervalPrelude
   } else if (defaultSolver == "Z3 <= 4.7.x") {
     // In Z3 4.7.x and below, difference is built in and intersection is called intersect
     List(
@@ -136,7 +173,7 @@ object SMTSolving extends Core
       "(define-fun member ((x Int) (s SetInt)) Bool (select s x))",
       "(define-fun insert ((x Int) (s SetInt)) SetInt (store s x true))",
       "(declare-datatypes () ((Interval (interval (lower Int) (upper Int)))))"
-    ) ++ intervalPrelude
+    ) ++ multisetPrelude ++ intervalPrelude
   } else throw SolverUnsupportedExpr(defaultSolver)
 
   private def checkSat(term: SMTBoolTerm): Boolean =
@@ -211,6 +248,62 @@ object SMTSolving extends Core
       } else throw SolverUnsupportedExpr(defaultSolver)
     }
   }
+
+  private def convertMultisetExpr(e: Expr): SMTMultisetTerm = e match {
+    case Var(name) => new VarTerm[MultisetTerm](name, multisetSort)
+    case MultisetLiteral(elems) => {
+      val emptyTerm = new TypedTerm[MultisetTerm, Term](Set.empty, emptyMultisetTerm)
+      makeMultisetInsert(emptyTerm, elems)
+    }
+    // Special case for unions with a literal
+    case BinaryExpr(OpMultisetUnion, MultisetLiteral(elems1), MultisetLiteral(elems2)) => {
+      val emptyTerm = new TypedTerm[MultisetTerm, Term](Set.empty, emptyMultisetTerm)
+      makeMultisetInsert(emptyTerm, elems1 ++ elems2)
+    }
+    case BinaryExpr(OpMultisetUnion, left, MultisetLiteral(elems)) => {
+      val l = convertMultisetExpr(left)
+      makeMultisetInsert(l, elems)
+    }
+    case BinaryExpr(OpMultisetUnion, MultisetLiteral(elems), right) => {
+      val r = convertMultisetExpr(right)
+      makeMultisetInsert(r, elems)
+    }
+    case BinaryExpr(OpMultisetUnion, left, right) => {
+      val l = convertMultisetExpr(left)
+      val r = convertMultisetExpr(right)
+      new TypedTerm[MultisetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(multisetUnionSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpMultisetDiff, left, right) => {
+      val l = convertMultisetExpr(left)
+      val r = convertMultisetExpr(right)
+      new TypedTerm[MultisetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(multisetDiffSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpMultisetIntersect, left, right) => {
+      val l = convertMultisetExpr(left)
+      val r = convertMultisetExpr(right)
+      new TypedTerm[MultisetTerm, Term](l.typeDefs ++ r.typeDefs, QIdAndTermsTerm(multisetIntersectSymbol, List(l.termDef, r.termDef)))
+    }
+    case _ => throw SMTUnsupportedExpr(e)
+  }
+
+  private def makeMultisetInsert(multisetTerm: SMTMultisetTerm, elems: List[Expr]): SMTMultisetTerm = {
+    if (elems.isEmpty) {
+      multisetTerm
+    } else {
+      val eTerms: List[SMTIntTerm] = elems.map(convertIntExpr)
+      if (defaultSolver == "CVC4") {
+        // TODO
+        throw SolverUnsupportedExpr(defaultSolver)
+      } else if (defaultSolver == "Z3" || defaultSolver == "Z3 <= 4.7.x") {
+        def makeInsertOne(multisetTerm: SMTMultisetTerm, eTerm: SMTIntTerm): SMTMultisetTerm =
+          new TypedTerm[MultisetTerm, Term](multisetTerm.typeDefs ++ eTerm.typeDefs,
+            QIdAndTermsTerm(multisetInsertSymbol, List(eTerm.termDef, multisetTerm.termDef)))
+
+        eTerms.foldLeft(multisetTerm)(makeInsertOne)
+      } else throw SolverUnsupportedExpr(defaultSolver)
+    }
+  }
+
 
   private def convertIntervalExpr(e: Expr): SMTIntervalTerm = e match {
     case Var(name) => new VarTerm[IntervalTerm](name, intervalSort)
@@ -289,6 +382,23 @@ object SMTSolving extends Core
       val r = convertSetExpr(right)
       new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
         QIdAndTermsTerm(setSubsetSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpMultisetIn, left, right) => {
+      var l = convertIntExpr(left)
+      var r = convertMultisetExpr(right)
+      new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(multisetMemberSymbol, List(l.termDef, r.termDef)))
+    }
+    case BinaryExpr(OpMultisetEq, left, right) => {
+      var l = convertMultisetExpr(left)
+      var r = convertMultisetExpr(right)
+      l === r
+    }
+    case BinaryExpr(OpMultisetSubset, left, right) => {
+      val l = convertMultisetExpr(left)
+      val r = convertMultisetExpr(right)
+      new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(multisetSubsetSymbol, List(l.termDef, r.termDef)))
     }
     case BinaryExpr(OpIntervalIn, left, right) => {
       val l = convertIntExpr(left)

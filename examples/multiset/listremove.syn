@@ -1,0 +1,9 @@
+Listremove example
+
+###
+
+{true ; lseg(x, s) ** ret :-> a}
+void list_delete_all (loc x, loc ret)
+{s1 =m s -- #{a} ; lseg(y, s1) ** ret :-> y }
+
+###

@@ -44,6 +44,7 @@ trait PureLogicUtils {
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(propagate_not(e1),propagate_not(e2), propagate_not(e3))
     case SetLiteral(args) => SetLiteral(args.map(propagate_not))
+    case MultisetLiteral(args) => MultisetLiteral(args.map(propagate_not))
     case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
@@ -67,6 +68,7 @@ trait PureLogicUtils {
     case _:Var => e
     case IfThenElse(e1,e2,e3) => IfThenElse(desugar(e1),desugar(e2), desugar(e3))
     case SetLiteral(args) => SetLiteral(args.map(desugar))
+    case MultisetLiteral(args) => MultisetLiteral(args.map(desugar))
     case e => throw SynthesisException(s"Not supported: ${e.pp} (${e.getClass.getName})")
   }
 
@@ -114,6 +116,12 @@ trait PureLogicUtils {
       if (n1 <= n2) BinaryExpr(OpSetEq, v1, v2) else BinaryExpr(OpSetEq, v2, v1)
     case BinaryExpr(OpSetEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpSetEq, v, simplify(e))
 
+    case BinaryExpr(OpMultisetEq, Var(n1), Var(n2)) if n1 == n2 => // remove trivial equality
+      BoolConst(true)
+    case BinaryExpr(OpMultisetEq, v1@Var(n1), v2@Var(n2)) => // sort arguments lexicographically
+      if (n1 <= n2) BinaryExpr(OpMultisetEq, v1, v2) else BinaryExpr(OpMultisetEq, v2, v1)
+    case BinaryExpr(OpMultisetEq, e, v@Var(_)) if !e.isInstanceOf[Var] => BinaryExpr(OpMultisetEq, v, simplify(e))
+
       // TODO: maybe enable
 //    case BinaryExpr(OpBoolEq, v1@Var(n1), v2@Var(n2)) if n1 == n2 => // remove trivial equality
 //      BoolConst(true)
@@ -127,6 +135,9 @@ trait PureLogicUtils {
 
     case BinaryExpr(OpUnion, left, SetLiteral(s)) if s.isEmpty => simplify(left)
     case BinaryExpr(OpUnion, SetLiteral(s), right) if s.isEmpty => simplify(right)
+
+    case BinaryExpr(OpMultisetUnion, left, MultisetLiteral(m)) if m.isEmpty => simplify(left)
+    case BinaryExpr(OpMultisetUnion, MultisetLiteral(m), right) if m.isEmpty => simplify(right)
 
     case UnaryExpr(op, e1) => UnaryExpr(op, simplify(e1))
     case BinaryExpr(op, e1, e2) => BinaryExpr(op, simplify(e1), simplify(e2))

@@ -7,6 +7,8 @@ import org.tygus.suslik.logic._
 import org.tygus.suslik.synthesis._
 import org.tygus.suslik.synthesis.rules.Rules._
 
+import org.tygus.suslik.report.Log
+
 /**
   * The goal of unification rules is to eliminate existentials
   * via either heap unification or various forms of pure synthesis.
@@ -140,6 +142,7 @@ object UnificationRules extends PureLogicUtils with SepLogicUtils with RuleUtils
         case BinaryExpr(OpEq, l, r) => extractSides(l,r)
         case BinaryExpr(OpBoolEq, l, r) => extractSides(l,r)
         case BinaryExpr(OpSetEq, l, r) => extractSides(l,r)
+        case BinaryExpr(OpMultisetEq, l, r) => extractSides(l, r)
         case BinaryExpr(OpIntervalEq, l, r) => extractSides(l,r)
         case _ => None
       }, p2) match {

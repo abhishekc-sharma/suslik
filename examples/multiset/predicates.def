@@ -1,0 +1,9 @@
+predicate lseg(loc x, multiset s) {
+|  x == null        => { s =m #{} ; emp }
+|  not (x == null)  => { s =m #{v} ++ s1 ; [x, 2] ** x :-> v ** (x + 1) :-> nxt ** lseg(nxt, s1) }
+}
+
+predicate lseg2(loc x, multiset s) {
+|  x == null        => { s =m #{} ; emp }
+|  not (x == null)  => { s =m #{v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> (v + 1) ** (x + 2) :-> nxt ** lseg2(nxt, s1) }
+}

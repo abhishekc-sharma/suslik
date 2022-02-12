@@ -1,0 +1,9 @@
+singly-linked list: experiment
+
+#####
+
+{true ; ret :-> 0}
+void lseg_experiment(loc ret)
+{s =m #{} ; ret :-> x ** lseg(x, s)}
+
+#####

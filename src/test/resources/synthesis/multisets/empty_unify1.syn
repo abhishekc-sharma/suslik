@@ -1,0 +1,12 @@
+Should solve the unification with empty multisets
+
+#####
+
+{ S =m #{v2} ++ S1 /\ S1 =m #{} ; emp}
+void foo (int v)
+{ S =m #{v2} ++ S11  /\  S11 =m #{} ; emp}
+
+#####
+
+void foo (int v) {
+}

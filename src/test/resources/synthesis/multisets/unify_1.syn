@@ -1,0 +1,14 @@
+Should be able to unify simple facts about multisets via *-hypothesis
+
+#####
+
+{ S =i {v} ++ S1 ; emp}
+
+void foo (loc x)
+
+{ v in S ; emp}
+
+#####
+
+void foo (loc x) {
+}
