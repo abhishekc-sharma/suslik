@@ -6,7 +6,7 @@ Port of singly-linked list tests from
 | Name         | Any Notes                                              |
 |--------------|--------------------------------------------------------|
 |ssl-singleton |                                                        |
-|ssl-dupleton  | I don't think this test works with normal linked lists! Glad it works here.|
+|ssl-dupleton  |                                                        |
 |ssl-free      |                                                        |
 |ssl-copy      |                                                        |
 |ssl-append    |                                                        |
@@ -15,3 +15,4 @@ Port of singly-linked list tests from
 | Name         | Reason                                      |
 |--------------|---------------------------------------------|
 | ssl-init     | Haven't defined `<=` (subset) for sequences (OpSubinterval) |
+| ssl-delete-all | Haven't defined `--` (difference) on sequences (OpDiff) |
