@@ -9,6 +9,7 @@ Port of singly-linked list tests from
 |ssl-dupleton  | I don't think this test works with normal linked lists! Glad it works here.|
 |ssl-free      |                                                        |
 |ssl-copy      |                                                        |
+|ssl-append    |                                                        |
 
 ## Doesn't work
 | Name         | Reason                                      |
