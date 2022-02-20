@@ -8,6 +8,7 @@ Port of singly-linked list tests from
 |ssl-singleton |                                                        |
 |ssl-dupleton  | I don't think this test works with normal linked lists! Glad it works here.|
 |ssl-free      |                                                        |
+|ssl-copy      |                                                        |
 
 ## Doesn't work
 | Name         | Reason                                      |
