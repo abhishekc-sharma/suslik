@@ -119,6 +119,8 @@ object SMTSolving extends Core
 
   def emptySequenceTerm: Term = QIdTerm(emptySequenceSymbol)
 
+  def sequenceContainsSymbol = SimpleQId(SymbolId(SSymbol("seq.contains")))
+
   /*def sequencePrelude: List[String] = List(
     "(define-sort SequenceInt () (List Int))",
     "(define-fun sempty () SequenceInt (as nil SequenceInt))",
@@ -286,6 +288,7 @@ object SMTSolving extends Core
       new TypedTerm[SequenceTerm, Term](l.typeDefs ++ r.typeDefs,
         QIdAndTermsTerm(sequenceAppendSymbol, List(l.termDef, r.termDef)))      
     }
+
     case _ => throw SMTUnsupportedExpr(e)
   }
 
@@ -382,6 +385,14 @@ object SMTSolving extends Core
       val r = convertSequenceExpr(right)
 
       l === r
+    }
+
+    case BinaryExpr(OpSequenceContains, left, right) => {
+      val l = convertSequenceExpr(left)
+      val r = convertSequenceExpr(right)
+
+      new TypedTerm[BoolTerm, Term](l.typeDefs ++ r.typeDefs,
+        QIdAndTermsTerm(sequenceContainsSymbol, List(l.termDef, r.termDef)))
     }
 
     case Unknown(_, _, _) => True() // Treat unknown predicates as true

@@ -1,0 +1,7 @@
+Incredibly basic test of contains
+
+#####
+
+{true ; sll(x,s)}
+void contain(loc x)
+{s1 <= s; sll(x, s1)}

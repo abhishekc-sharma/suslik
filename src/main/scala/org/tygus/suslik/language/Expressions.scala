@@ -157,6 +157,7 @@ object Expressions {
       (IntType, IntType) -> OpLeq,
       (IntSetType, IntSetType) -> OpSubset,
       (IntervalType, IntervalType) -> OpSubinterval,
+      (IntSequenceType, IntSequenceType) -> OpSequenceContains,
     )
 
     override def default: BinOp = OpLeq
@@ -303,6 +304,12 @@ object Expressions {
   object OpSequenceEq extends RelOp with SymmetricOp {
     def level: Int = 3
     override def pp: String = "=="
+    def lType: SSLType = IntSequenceType
+    def rType: SSLType = IntSequenceType
+  }
+  object OpSequenceContains extends RelOp {
+    def level: Int = 3
+    override def pp: String = "<=i"
     def lType: SSLType = IntSequenceType
     def rType: SSLType = IntSequenceType
   }
