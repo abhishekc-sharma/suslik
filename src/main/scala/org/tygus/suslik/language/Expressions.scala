@@ -337,6 +337,11 @@ object Expressions {
     override def inputType: SSLType = IntSequenceType
     override def outputType: SSLType = IntSequenceType
   }
+  object OpSequenceLen extends UnOp {
+    override def pp: String = "len"
+    override def inputType: SSLType = IntSequenceType
+    override def outputType: SSLType = IntType
+  }
 
   sealed abstract class Expr extends PrettyPrinting with HasExpressions[Expr] with Ordered[Expr] {
 

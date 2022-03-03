@@ -121,6 +121,8 @@ object SMTSolving extends Core
 
   def sequenceContainsSymbol = SimpleQId(SymbolId(SSymbol("seq.contains")))
 
+  def sequenceLenSymbol = SimpleQId(SymbolId(SSymbol("seq.len")))
+
   /*def sequencePrelude: List[String] = List(
     "(define-sort SequenceInt () (List Int))",
     "(define-fun sempty () SequenceInt (as nil SequenceInt))",
@@ -410,6 +412,10 @@ object SMTSolving extends Core
     case UnaryExpr(OpUpper, e) => {
       val s = convertIntervalExpr(e)
       new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(intervalUpperSymbol, List(s.termDef)))
+    }
+    case UnaryExpr(OpSequenceLen, e) => {
+      val s = convertSequenceExpr(e)
+      new TypedTerm[IntTerm, Term](s.typeDefs, QIdAndTermsTerm(sequenceLenSymbol, List(s.termDef)))
     }
     case BinaryExpr(op, left, right) => {
       val l = convertIntExpr(left)
